@@ -683,7 +683,7 @@ mod test {
     }
 
     #[test]
-    fn read_shift_jis_encoded_dbase_file() {
+    fn new_with_label() {
         let file = File::open("tests/data/shift_jis.dbf").unwrap();
         let mut reader = Reader::new_with_label(file, "shift_jis").unwrap();
         assert_eq!(reader.header().num_records, 4);
@@ -709,7 +709,7 @@ mod test {
     }
 
     #[test]
-    fn aaa() {
+    fn read_with_label() {
         let records = super::read_with_label("tests/data/shift_jis.dbf", "shift_jis").unwrap();
         assert_eq!(
             records[0].get("text").unwrap().to_owned(),
