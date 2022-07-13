@@ -95,6 +95,10 @@ impl TableWriterBuilder {
         Self::_from_table_info(table_info, encoding_rs::UTF_8)
     }
 
+    pub fn set_encoding(&mut self, encoding: &'static Encoding) {
+        self.encoding = encoding;
+    }
+
     /// Adds a Character field to the record definition,
     /// the length is the maximum number of bytes (not chars) that fields can hold
     pub fn add_character_field(mut self, name: FieldName, length: u8) -> Self {
