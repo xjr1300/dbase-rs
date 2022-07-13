@@ -95,6 +95,19 @@ impl TableWriterBuilder {
         Self::_from_table_info(table_info, encoding_rs::UTF_8)
     }
 
+    pub fn from_table_info_with_label(table_info: TableInfo, label: &str) -> Result<Self, Error> {
+        let encoding = Encoding::for_label(label.as_bytes());
+        if encoding.is_none() {
+            return Err(Error {
+                record_num: 0,
+                field: None,
+                kind: ErrorKind::InvalidEncoding,
+            });
+        }
+
+        Ok(Self::_from_table_info(table_info, encoding.unwrap()))
+    }
+
     pub fn set_encoding(&mut self, encoding: &'static Encoding) {
         self.encoding = encoding;
     }

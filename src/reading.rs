@@ -378,6 +378,7 @@ impl Reader<BufReader<File>> {
         }
         Ok(reader)
     }
+
     /// Creates a new dbase Reader from a path
     ///
     /// # Example
