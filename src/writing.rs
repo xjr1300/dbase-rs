@@ -55,6 +55,7 @@ impl TableWriterBuilder {
     /// let mut  reader = dbase::Reader::from_path("tests/data/stations.dbf").unwrap();
     /// let mut stations = reader.read().unwrap();
     /// let old_name = stations[0].insert("name".parse().unwrap(), String::from("Montparnasse").into());
+    /// // cspell:disable-next-line
     /// assert_eq!(old_name, Some(FieldValue::Character(Some("Van Dorn Street".parse().unwrap()))));
     ///
     /// let mut writer = TableWriterBuilder::from_reader(reader)
@@ -430,6 +431,7 @@ impl<W: Write + Seek> TableWriter<W> {
     ///     .build_with_file_dest("records.dbf")?;
     ///
     /// let mut record = dbase::Record::default();
+    /// // cspell:disable-next-line
     /// record.insert("First Name".to_string(), dbase::FieldValue::Character(Some("Yoshi".to_string())));
     ///
     /// writer.write_record(&record)?;
@@ -499,6 +501,7 @@ impl<W: Write + Seek> TableWriter<W> {
     ///
     /// let records = vec![
     ///     User {
+    ///         // cspell:disable-next-line
     ///         first_name: "Yoshi".to_owned(),
     ///     }
     /// ];
