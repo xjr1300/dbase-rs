@@ -4,6 +4,7 @@ use std::io::{BufWriter, Cursor, Seek, SeekFrom, Write};
 use std::path::Path;
 
 use byteorder::WriteBytesExt;
+use encoding_rs::Encoding;
 
 use crate::header::Header;
 use crate::reading::TableInfo;
@@ -38,6 +39,7 @@ const FILE_TERMINATOR: u8 = 0x1A;
 pub struct TableWriterBuilder {
     v: Vec<FieldInfo>,
     hdr: Header,
+    encoding: &'static Encoding,
 }
 
 impl TableWriterBuilder {
@@ -84,6 +86,7 @@ impl TableWriterBuilder {
         Self {
             v: fields_info,
             hdr,
+            encoding: encoding_rs::UTF_8,
         }
     }
 
@@ -223,6 +226,7 @@ impl Default for TableWriterBuilder {
         Self {
             v: vec![],
             hdr: Header::new(0, 0, 0),
+            encoding: encoding_rs::UTF_8,
         }
     }
 }

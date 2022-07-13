@@ -15,7 +15,7 @@ If dbase-rs fails to read or write or does something incorrectly, don't hesitate
 * `TableWrierBuilder`に書き出しエンコーディングを設定するメソッドを追加する。
 * `TableWriterBuilder`に`from_table_info_with_label`メソッドを追加して、既存の`from_table_info`メソッドに書き出しエンコーディングを指定する、追加の`label`引数を受け取るようにする。
 * `TableWriterBuilder`の下記メソッドに対して、書き出しエンコーディングを指定するメソッドを追加する。
-  * `default`
+  * `new`
   * `build_with_dest`
   * `build_with_file_dest`
 * `FieldWriter`に書き出しエンコーディングを渡す。
