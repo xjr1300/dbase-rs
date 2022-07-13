@@ -30,6 +30,25 @@
 //! # }
 //! ```
 //!
+//! You can also specify a encoding.
+//!
+//! ```
+//! use dbase::FieldValue;
+//! # fn main() -> Result<(), dbase::Error> {
+//! let records = dbase::read_with_label("tests/data/shift_jis.dbf", "shift_jis")?;
+//! for record in records {
+//!     for (name, value) in record {
+//!         println!("{} -> {:?}", name, value);
+//!         match value {
+//!             FieldValue::Character(Some(string)) => println!("Got string: {}", string),
+//!             _ => {}
+//!         }
+//!     }
+//!}
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! You can also create a [Reader](reading/struct.Reader.html) and iterate over the records.
 //!
 //! ```
@@ -237,7 +256,8 @@ mod writing;
 
 pub use crate::error::{Error, ErrorKind, FieldIOError};
 pub use crate::reading::{
-    read, FieldIterator, NamedValue, ReadableRecord, Reader, Record, RecordIterator, TableInfo,
+    read, read_with_label, FieldIterator, NamedValue, ReadableRecord, Reader, Record,
+    RecordIterator, TableInfo,
 };
 pub use crate::record::field::{Date, DateTime, FieldType, FieldValue, Time};
 pub use crate::record::{FieldConversionError, FieldInfo, FieldName};

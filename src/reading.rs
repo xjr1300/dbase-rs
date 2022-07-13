@@ -1,6 +1,7 @@
 //! Module with the definition of fn's and struct's to read .dbf files
 
 use byteorder::ReadBytesExt;
+use encoding_rs::Encoding;
 
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
@@ -130,6 +131,17 @@ pub struct TableInfo {
     pub(crate) fields_info: Vec<FieldInfo>,
 }
 
+#[derive(Clone, Debug)]
+struct Inner {
+    pub(crate) encoding: &'static Encoding,
+}
+
+impl<'a> Inner {
+    pub(crate) fn encoding(&self) -> &'a Encoding {
+        self.encoding
+    }
+}
+
 /// Struct with the handle to the source .dbf file
 /// Responsible for reading the content
 #[derive(Clone, Debug)]
@@ -139,36 +151,11 @@ pub struct Reader<T: Read + Seek> {
     memo_reader: Option<MemoReader<T>>,
     header: Header,
     fields_info: Vec<FieldInfo>,
+    inner: Inner,
 }
 
 impl<T: Read + Seek> Reader<T> {
-    /// Creates a new reader from the source.
-    ///
-    /// Reads the header and fields information as soon as its created.
-    ///
-    /// Creating a reader from a file path using the [from_path](struct.Reader.html#method.from_path) is the prefered
-    /// way of doing it as it wraps the file in a BufReader for performance.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # fn main() -> Result<(), dbase::Error> {
-    /// let mut reader = dbase::Reader::from_path("tests/data/line.dbf")?;
-    /// let records = reader.read()?;
-    /// # Ok(())
-    /// # }
-    ///
-    /// ```
-    ///
-    /// ```
-    /// use std::fs::File;
-    /// # fn main() -> Result<(), dbase::Error> {
-    /// let f = File::open("tests/data/line.dbf").unwrap();
-    /// let reader = dbase::Reader::new(f)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn new(mut source: T) -> Result<Self, Error> {
+    fn _new(mut source: T, label: Option<&str>) -> Result<Self, Error> {
         let header = Header::read_from(&mut source).map_err(|error| Error::io_error(error, 0))?;
 
         let offset = if header.file_type.is_visual_fox_pro() {
@@ -200,12 +187,60 @@ impl<T: Read + Seek> Reader<T> {
             .seek(SeekFrom::Start(u64::from(header.offset_to_first_record)))
             .map_err(|error| Error::io_error(error, 0))?;
 
+        // get encoding.
+        let label = label.unwrap_or("utf-8");
+        let encoding = Encoding::for_label(label.as_bytes());
+        if encoding.is_none() {
+            return Err(Error {
+                record_num: 0,
+                field: None,
+                kind: ErrorKind::InvalidEncoding,
+            });
+        }
+
         Ok(Self {
             source,
             memo_reader: None,
             header,
             fields_info,
+            inner: Inner {
+                encoding: encoding.unwrap(),
+            },
         })
+    }
+
+    /// Creates a new reader from the source.
+    ///
+    /// Reads the header and fields information as soon as its created.
+    ///
+    /// Creating a reader from a file path using the [from_path](struct.Reader.html#method.from_path) is the prefered
+    /// way of doing it as it wraps the file in a BufReader for performance.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), dbase::Error> {
+    /// let mut reader = dbase::Reader::from_path("tests/data/line.dbf")?;
+    /// let records = reader.read()?;
+    /// # Ok(())
+    /// # }
+    ///
+    /// ```
+    ///
+    /// ```
+    /// use std::fs::File;
+    /// # fn main() -> Result<(), dbase::Error> {
+    /// let f = File::open("tests/data/line.dbf").unwrap();
+    /// let reader = dbase::Reader::new(f)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(source: T) -> Result<Self, Error> {
+        Self::_new(source, None)
+    }
+
+    pub fn new_with_label(source: T, label: &str) -> Result<Self, Error> {
+        Self::_new(source, Some(label))
     }
 
     /// Returns the header of the file
@@ -225,12 +260,14 @@ impl<T: Read + Seek> Reader<T> {
             .iter()
             .map(|i| i.field_length as usize)
             .sum();
+        let encoding = self.inner.encoding();
         RecordIterator {
             reader: self,
             record_type: std::marker::PhantomData,
             current_record: 0,
             record_data_buffer: std::io::Cursor::new(vec![0u8; record_size]),
             field_data_buffer: [0u8; 255],
+            encoding,
         }
     }
 
@@ -301,21 +338,15 @@ impl<T: Read + Seek> Reader<T> {
 }
 
 impl Reader<BufReader<File>> {
-    /// Creates a new dbase Reader from a path
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # fn main() -> Result<(), dbase::Error> {
-    /// let reader = dbase::Reader::from_path("tests/data/line.dbf")?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub fn _from_path<P: AsRef<Path>>(path: P, label: Option<&str>) -> Result<Self, Error> {
         let p = path.as_ref().to_owned();
         let bufreader =
             BufReader::new(File::open(path).map_err(|error| Error::io_error(error, 0))?);
-        let mut reader = Reader::new(bufreader)?;
+        let mut reader = if label.is_none() {
+            Reader::new(bufreader)?
+        } else {
+            Reader::new_with_label(bufreader, label.unwrap())?
+        };
         let at_least_one_field_is_memo = reader
             .fields_info
             .iter()
@@ -341,6 +372,23 @@ impl Reader<BufReader<File>> {
             }
         }
         Ok(reader)
+    }
+    /// Creates a new dbase Reader from a path
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), dbase::Error> {
+    /// let reader = dbase::Reader::from_path("tests/data/line.dbf")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        Self::_from_path(path, None)
+    }
+
+    pub fn from_path_with_label<P: AsRef<Path>>(path: P, label: &str) -> Result<Self, Error> {
+        Self::_from_path(path, Some(label))
     }
 }
 
@@ -368,6 +416,7 @@ pub struct FieldIterator<'a, T: Read + Seek> {
     pub(crate) memo_reader: &'a mut Option<MemoReader<T>>,
     /// Buffer where field data is stored
     field_data_buffer: &'a mut [u8; 255],
+    pub(crate) encoding: &'static Encoding,
 }
 
 impl<'a, T: Read + Seek> FieldIterator<'a, T> {
@@ -506,7 +555,12 @@ impl<'a, T: Read + Seek> FieldIterator<'a, T> {
     fn read_field(&mut self, field_info: &'a FieldInfo) -> Result<FieldValue, FieldIOError> {
         let field_data_buffer = &mut self.field_data_buffer[..field_info.length() as usize];
         self.source.read_exact(field_data_buffer).unwrap();
-        match FieldValue::read_from(field_data_buffer, self.memo_reader, field_info) {
+        match FieldValue::read_from(
+            field_data_buffer,
+            self.memo_reader,
+            field_info,
+            self.encoding,
+        ) {
             Ok(value) => Ok(value),
             Err(kind) => Err(FieldIOError {
                 field: Some(field_info.clone()),
@@ -541,6 +595,7 @@ pub struct RecordIterator<'a, T: Read + Seek, R: ReadableRecord> {
     /// Non-Memo field length is stored on a u8,
     /// so fields cannot exceed 255 bytes
     field_data_buffer: [u8; 255],
+    encoding: &'static Encoding,
 }
 
 impl<'a, T: Read + Seek, R: ReadableRecord> Iterator for RecordIterator<'a, T, R> {
@@ -561,6 +616,7 @@ impl<'a, T: Read + Seek, R: ReadableRecord> Iterator for RecordIterator<'a, T, R
                 fields_info: self.reader.fields_info.iter().peekable(),
                 memo_reader: &mut self.reader.memo_reader,
                 field_data_buffer: &mut self.field_data_buffer,
+                encoding: self.encoding,
             };
 
             let record = R::read_using(&mut iter)
@@ -586,6 +642,17 @@ pub fn read<P: AsRef<Path>>(path: P) -> Result<Vec<Record>, Error> {
     reader.read()
 }
 
+/// # Example
+///
+/// ```
+/// let records = dbase::read_with_label("tests/data/shift_jis.dbf", "shift_jis").unwrap();
+/// assert_eq!(records.len(), 4);
+/// ```
+pub fn read_with_label<P: AsRef<Path>>(path: P, label: &str) -> Result<Vec<Record>, Error> {
+    let mut reader = Reader::from_path_with_label(path, label).unwrap();
+    reader.read()
+}
+
 #[cfg(test)]
 mod test {
     use std::fs::File;
@@ -604,5 +671,61 @@ mod test {
         // Add the terminator
         expected_pos += std::mem::size_of::<u8>();
         assert_eq!(pos_after_reading, expected_pos as u64);
+    }
+
+    #[test]
+    fn specify_invalid_encoding_label() {
+        let file = File::open("tests/data/line.dbf").unwrap();
+        let reader = Reader::new_with_label(file, "invalid-encoding");
+        if reader.is_ok() {
+            assert!(false, "the invalid encoding error was not returned");
+        }
+    }
+
+    #[test]
+    fn read_shift_jis_encoded_dbase_file() {
+        let file = File::open("tests/data/shift_jis.dbf").unwrap();
+        let mut reader = Reader::new_with_label(file, "shift_jis").unwrap();
+        assert_eq!(reader.header().num_records, 4);
+        use std::collections::HashMap;
+        let mut records = HashMap::new();
+        for (index, record) in reader.iter_records().enumerate() {
+            records.insert(index, record.unwrap().get("text").unwrap().to_owned());
+        }
+        // check
+        assert_eq!(
+            *records.get(&0).unwrap(),
+            FieldValue::Character(Some("Thease are only alphabet charcters.".to_string()))
+        );
+        assert_eq!(
+            *records.get(&1).unwrap(),
+            FieldValue::Character(Some("Rustは、難しいけど楽しい。".to_string()))
+        );
+        assert_eq!(
+            *records.get(&2).unwrap(),
+            FieldValue::Character(Some("吾輩は猫である。名前はまだ無い。".to_string()))
+        );
+        assert_eq!(*records.get(&3).unwrap(), FieldValue::Character(None));
+    }
+
+    #[test]
+    fn aaa() {
+        let records = super::read_with_label("tests/data/shift_jis.dbf", "shift_jis").unwrap();
+        assert_eq!(
+            records[0].get("text").unwrap().to_owned(),
+            FieldValue::Character(Some("Thease are only alphabet charcters.".to_string()))
+        );
+        assert_eq!(
+            records[1].get("text").unwrap().to_owned(),
+            FieldValue::Character(Some("Rustは、難しいけど楽しい。".to_string()))
+        );
+        assert_eq!(
+            records[2].get("text").unwrap().to_owned(),
+            FieldValue::Character(Some("吾輩は猫である。名前はまだ無い。".to_string()))
+        );
+        assert_eq!(
+            records[3].get("text").unwrap().to_owned(),
+            FieldValue::Character(None),
+        );
     }
 }

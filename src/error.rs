@@ -27,6 +27,7 @@ pub enum ErrorKind {
     /// dbase field's type
     IncompatibleType,
     Message(String),
+    InvalidEncoding,
 }
 
 /// The error type for this crate
@@ -176,6 +177,7 @@ impl std::error::Error for FieldIOError {
             ErrorKind::TooManyFields => "The writer expected to write more fields for the record",
             ErrorKind::IncompatibleType => "The types are not compatible",
             ErrorKind::Message(ref msg) => msg,
+            ErrorKind::InvalidEncoding => "The encoding label is not a valid one",
         }
     }
 }
