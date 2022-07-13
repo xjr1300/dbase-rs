@@ -71,10 +71,11 @@ impl TableWriterBuilder {
     pub fn from_reader<T: std::io::Read + std::io::Seek>(
         reader: crate::reading::Reader<T>,
     ) -> Self {
-        Self::from_table_info(reader.into_table_info())
+        let encoding = reader.encoding();
+        Self::_from_table_info(reader.into_table_info(), encoding)
     }
 
-    pub fn from_table_info(table_info: TableInfo) -> Self {
+    fn _from_table_info(table_info: TableInfo, encoding: &'static Encoding) -> Self {
         let mut fields_info = table_info.fields_info;
         if let Some(i) = fields_info.first() {
             if i.is_deletion_flag() {
@@ -86,8 +87,12 @@ impl TableWriterBuilder {
         Self {
             v: fields_info,
             hdr,
-            encoding: encoding_rs::UTF_8,
+            encoding,
         }
+    }
+
+    pub fn from_table_info(table_info: TableInfo) -> Self {
+        Self::_from_table_info(table_info, encoding_rs::UTF_8)
     }
 
     /// Adds a Character field to the record definition,

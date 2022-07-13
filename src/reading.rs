@@ -254,6 +254,10 @@ impl<T: Read + Seek> Reader<T> {
         &self.fields_info
     }
 
+    pub fn encoding(&self) -> &'static Encoding {
+        self.inner.encoding()
+    }
+
     /// Creates an iterator of records of the type you want
     pub fn iter_records_as<R: ReadableRecord>(&mut self) -> RecordIterator<T, R> {
         let record_size: usize = self
