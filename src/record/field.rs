@@ -4,6 +4,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::str::FromStr;
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
+use encoding_rs::Encoding;
 
 use crate::error::ErrorKind;
 use crate::record::FieldInfo;
@@ -262,6 +263,7 @@ impl FieldValue {
         mut field_bytes: &[u8],
         memo_reader: &mut Option<MemoReader<T>>,
         field_info: &FieldInfo,
+        encoding: &'static Encoding,
     ) -> Result<Self, ErrorKind> {
         debug_assert_eq!(field_bytes.len(), field_info.length() as usize);
         let value = match field_info.field_type {
@@ -277,7 +279,8 @@ impl FieldValue {
                 if value.is_empty() {
                     FieldValue::Character(None)
                 } else {
-                    FieldValue::Character(Some(String::from_utf8_lossy(value).to_string()))
+                    let (value, _, _) = encoding.decode(value);
+                    FieldValue::Character(Some(value.into_owned()))
                 }
             }
             FieldType::Numeric => {
@@ -460,7 +463,7 @@ impl Date {
         }
     }
 
-    fn to_julian_day_number(&self) -> i32 {
+    fn to_julian_day_number(self) -> i32 {
         let (month, year) = if self.month > 2 {
             (self.month - 3, self.year)
         } else {
@@ -577,7 +580,7 @@ impl Time {
         }
     }
 
-    fn to_time_word(&self) -> i32 {
+    fn to_time_word(self) -> i32 {
         let mut time_word = self.hours * Self::HOURS_FACTOR as u32;
         time_word += self.minutes * Self::MINUTES_FACTOR as u32;
         time_word += self.seconds * Self::SECONDS_FACTOR as u32;
@@ -961,6 +964,7 @@ mod test {
     use super::*;
 
     use crate::record::FieldFlags;
+    use encoding_rs::Encoding;
     use std::io::Cursor;
 
     fn create_temp_field_info(field_type: FieldType, len: u8) -> FieldInfo {
@@ -981,9 +985,14 @@ mod test {
         value.write_as(field_info, &mut out).unwrap();
         out.set_position(0);
 
-        let read_value =
-            FieldValue::read_from::<std::io::Cursor<Vec<u8>>>(out.get_mut(), &mut None, field_info)
-                .unwrap();
+        let encoding = Encoding::for_label(b"utf-8").unwrap();
+        let read_value = FieldValue::read_from::<std::io::Cursor<Vec<u8>>>(
+            out.get_mut(),
+            &mut None,
+            field_info,
+            encoding,
+        )
+        .unwrap();
         assert_eq!(value, &read_value);
     }
 
