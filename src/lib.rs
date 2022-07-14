@@ -254,6 +254,8 @@ mod reading;
 mod record;
 mod writing;
 
+use encoding_rs::Encoding;
+
 pub use crate::error::{Error, ErrorKind, FieldIOError};
 pub use crate::reading::{
     read, read_with_label, FieldIterator, NamedValue, ReadableRecord, Reader, Record,
@@ -262,6 +264,23 @@ pub use crate::reading::{
 pub use crate::record::field::{Date, DateTime, FieldType, FieldValue, Time};
 pub use crate::record::{FieldConversionError, FieldInfo, FieldName};
 pub use crate::writing::{FieldWriter, TableWriter, TableWriterBuilder, WritableRecord};
+
+pub(crate) fn invalid_data_error(message: String) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::InvalidData, message)
+}
+
+pub(crate) fn encoded_bytes(value: &str, encoding: &'static Encoding) -> std::io::Result<Vec<u8>> {
+    let (encoded, _, result) = encoding.encode(value);
+    if !result {
+        return Err(invalid_data_error(format!(
+            "cannot encode `{}` by `{}` encoding",
+            value,
+            encoding.name()
+        )));
+    }
+
+    Ok(encoded.to_vec())
+}
 
 /// macro to define a struct that implements the ReadableRecord and WritableRecord
 ///
