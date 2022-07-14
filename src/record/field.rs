@@ -20,7 +20,7 @@ pub(crate) enum MemoFileType {
 }
 
 /// Although there are different memo file type with each a different
-/// header organisation, we use the same struct internally
+/// header organization, we use the same struct internally
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct MemoHeader {
     next_available_block_index: u32,
