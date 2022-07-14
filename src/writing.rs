@@ -4,6 +4,7 @@ use std::io::{BufWriter, Cursor, Seek, SeekFrom, Write};
 use std::path::Path;
 
 use byteorder::WriteBytesExt;
+use encoding_rs::Encoding;
 
 use crate::header::Header;
 use crate::reading::TableInfo;
@@ -38,12 +39,29 @@ const FILE_TERMINATOR: u8 = 0x1A;
 pub struct TableWriterBuilder {
     v: Vec<FieldInfo>,
     hdr: Header,
+    encoding: &'static Encoding,
 }
 
 impl TableWriterBuilder {
     /// Creates a new builder with an empty dBase record definition
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn new_with_label(label: &str) -> Result<Self, Error> {
+        let encoding = Encoding::for_label(label.as_bytes());
+        if encoding.is_none() {
+            return Err(Error {
+                record_num: 0,
+                field: None,
+                kind: ErrorKind::InvalidEncoding,
+            });
+        }
+
+        Ok(Self {
+            encoding: encoding.unwrap(),
+            ..Self::default()
+        })
     }
 
     /// Gets the field definition from the reader to construct the TableWriter
@@ -69,10 +87,11 @@ impl TableWriterBuilder {
     pub fn from_reader<T: std::io::Read + std::io::Seek>(
         reader: crate::reading::Reader<T>,
     ) -> Self {
-        Self::from_table_info(reader.into_table_info())
+        let encoding = reader.encoding();
+        Self::_from_table_info(reader.into_table_info(), encoding)
     }
 
-    pub fn from_table_info(table_info: TableInfo) -> Self {
+    fn _from_table_info(table_info: TableInfo, encoding: &'static Encoding) -> Self {
         let mut fields_info = table_info.fields_info;
         if let Some(i) = fields_info.first() {
             if i.is_deletion_flag() {
@@ -84,7 +103,29 @@ impl TableWriterBuilder {
         Self {
             v: fields_info,
             hdr,
+            encoding,
         }
+    }
+
+    pub fn from_table_info(table_info: TableInfo) -> Self {
+        Self::_from_table_info(table_info, encoding_rs::UTF_8)
+    }
+
+    pub fn from_table_info_with_label(table_info: TableInfo, label: &str) -> Result<Self, Error> {
+        let encoding = Encoding::for_label(label.as_bytes());
+        if encoding.is_none() {
+            return Err(Error {
+                record_num: 0,
+                field: None,
+                kind: ErrorKind::InvalidEncoding,
+            });
+        }
+
+        Ok(Self::_from_table_info(table_info, encoding.unwrap()))
+    }
+
+    pub fn set_encoding(&mut self, encoding: &'static Encoding) {
+        self.encoding = encoding;
     }
 
     /// Adds a Character field to the record definition,
@@ -194,7 +235,7 @@ impl TableWriterBuilder {
     }
     /// Builds the writer and set the dst as where the file data will be written
     pub fn build_with_dest<W: Write + Seek>(self, dst: W) -> TableWriter<W> {
-        TableWriter::new(dst, self.v, self.hdr)
+        TableWriter::new(dst, self.v, self.hdr, self.encoding)
     }
 
     /// Helper function to set create a file at the given path
@@ -223,6 +264,7 @@ impl Default for TableWriterBuilder {
         Self {
             v: vec![],
             hdr: Header::new(0, 0, 0),
+            encoding: encoding_rs::UTF_8,
         }
     }
 }
@@ -256,7 +298,12 @@ mod private {
 ///
 /// This trait is 'private' and cannot be implemented on your custom types.
 pub trait WritableAsDbaseField: private::Sealed {
-    fn write_as<W: Write>(&self, field_info: &FieldInfo, dst: &mut W) -> Result<(), ErrorKind>;
+    fn write_as<W: Write>(
+        &self,
+        field_info: &FieldInfo,
+        dst: &mut W,
+        encoding: &'static Encoding,
+    ) -> Result<(), ErrorKind>;
 }
 
 /// Trait to be implemented by struct that you want to be able to write to (serialize)
@@ -299,6 +346,7 @@ pub struct FieldWriter<'a, W: Write> {
     pub(crate) dst: &'a mut W,
     pub(crate) fields_info: std::iter::Peekable<std::slice::Iter<'a, FieldInfo>>,
     pub(crate) buffer: &'a mut Cursor<Vec<u8>>,
+    encoding: &'static Encoding,
 }
 
 impl<'a, W: Write> FieldWriter<'a, W> {
@@ -327,7 +375,7 @@ impl<'a, W: Write> FieldWriter<'a, W> {
             self.buffer.set_position(0);
 
             field_value
-                .write_as(field_info, &mut self.buffer)
+                .write_as(field_info, &mut self.buffer, self.encoding)
                 .map_err(|kind| FieldIOError::new(kind, Some(field_info.clone())))?;
 
             let bytes_written = self.buffer.position();
@@ -404,16 +452,23 @@ pub struct TableWriter<W: Write + Seek> {
     header: Header,
     /// Buffer used by the FieldWriter
     buffer: Cursor<Vec<u8>>,
+    encoding: &'static Encoding,
     closed: bool,
 }
 
 impl<W: Write + Seek> TableWriter<W> {
-    fn new(dst: W, fields_info: Vec<FieldInfo>, origin_header: Header) -> Self {
+    fn new(
+        dst: W,
+        fields_info: Vec<FieldInfo>,
+        origin_header: Header,
+        encoding: &'static Encoding,
+    ) -> Self {
         Self {
             dst,
             fields_info,
             header: origin_header,
             buffer: Cursor::new(vec![0u8; 255]),
+            encoding,
             closed: false,
         }
     }
@@ -450,6 +505,7 @@ impl<W: Write + Seek> TableWriter<W> {
             dst: &mut self.dst,
             fields_info: self.fields_info.iter().peekable(),
             buffer: &mut self.buffer,
+            encoding: self.encoding,
         };
 
         let current_record_num = self.header.num_records as usize;
@@ -560,7 +616,7 @@ impl<W: Write + Seek> TableWriter<W> {
             .map_err(|error| Error::io_error(error, 0))?;
         for record_info in &self.fields_info {
             record_info
-                .write_to(&mut self.dst)
+                .write_to(&mut self.dst, self.encoding)
                 .map_err(|error| Error::io_error(error, 0))?;
         }
         self.dst

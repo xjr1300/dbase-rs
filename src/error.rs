@@ -27,7 +27,12 @@ pub enum ErrorKind {
     /// dbase field's type
     IncompatibleType,
     Message(String),
+    /// If a encoding label is incorrect for encoding_rs
     InvalidEncoding,
+    /// Cannot encode a character field value by specified encoding
+    CannotEncodeFieldValue,
+    /// The field does not have enough length of field for writing string
+    NotEnoughFieldLength,
 }
 
 /// The error type for this crate
@@ -169,7 +174,7 @@ impl std::error::Error for FieldIOError {
             ErrorKind::ErrorOpeningMemoFile(_) => {
                 "An error occurred when trying to open the memo file"
             }
-            ErrorKind::BadConversion(_) => "The convertion cannot be made",
+            ErrorKind::BadConversion(_) => "The conversion cannot be made",
             ErrorKind::EndOfRecord => "End of record reached, no more fields left",
             ErrorKind::NotEnoughFields => {
                 "The writer did not expected that many fields for the record"
@@ -178,6 +183,12 @@ impl std::error::Error for FieldIOError {
             ErrorKind::IncompatibleType => "The types are not compatible",
             ErrorKind::Message(ref msg) => msg,
             ErrorKind::InvalidEncoding => "The encoding label is not a valid one",
+            ErrorKind::CannotEncodeFieldValue => {
+                "Cannot encode a character field value by specified encoding"
+            }
+            ErrorKind::NotEnoughFieldLength => {
+                "The field does not have enough length of field for writing string"
+            }
         }
     }
 }
