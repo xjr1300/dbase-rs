@@ -235,7 +235,7 @@ impl TableWriterBuilder {
     }
     /// Builds the writer and set the dst as where the file data will be written
     pub fn build_with_dest<W: Write + Seek>(self, dst: W) -> TableWriter<W> {
-        TableWriter::new(dst, self.v, self.hdr)
+        TableWriter::new(dst, self.v, self.hdr, self.encoding)
     }
 
     /// Helper function to set create a file at the given path
@@ -451,13 +451,18 @@ pub struct TableWriter<W: Write + Seek> {
 }
 
 impl<W: Write + Seek> TableWriter<W> {
-    fn new(dst: W, fields_info: Vec<FieldInfo>, origin_header: Header) -> Self {
+    fn new(
+        dst: W,
+        fields_info: Vec<FieldInfo>,
+        origin_header: Header,
+        encoding: &'static Encoding,
+    ) -> Self {
         Self {
             dst,
             fields_info,
             header: origin_header,
             buffer: Cursor::new(vec![0u8; 255]),
-            encoding: encoding_rs::UTF_8,
+            encoding,
             closed: false,
         }
     }
