@@ -298,7 +298,12 @@ mod private {
 ///
 /// This trait is 'private' and cannot be implemented on your custom types.
 pub trait WritableAsDbaseField: private::Sealed {
-    fn write_as<W: Write>(&self, field_info: &FieldInfo, dst: &mut W) -> Result<(), ErrorKind>;
+    fn write_as<W: Write>(
+        &self,
+        field_info: &FieldInfo,
+        dst: &mut W,
+        encoding: &'static Encoding,
+    ) -> Result<(), ErrorKind>;
 }
 
 /// Trait to be implemented by struct that you want to be able to write to (serialize)
@@ -370,7 +375,7 @@ impl<'a, W: Write> FieldWriter<'a, W> {
             self.buffer.set_position(0);
 
             field_value
-                .write_as(field_info, &mut self.buffer)
+                .write_as(field_info, &mut self.buffer, self.encoding)
                 .map_err(|kind| FieldIOError::new(kind, Some(field_info.clone())))?;
 
             let bytes_written = self.buffer.position();
@@ -611,7 +616,7 @@ impl<W: Write + Seek> TableWriter<W> {
             .map_err(|error| Error::io_error(error, 0))?;
         for record_info in &self.fields_info {
             record_info
-                .write_to(&mut self.dst)
+                .write_to(&mut self.dst, self.encoding)
                 .map_err(|error| Error::io_error(error, 0))?;
         }
         self.dst

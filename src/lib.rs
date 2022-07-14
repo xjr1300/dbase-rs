@@ -67,7 +67,7 @@
 //! ## Deserialisation
 //!
 //! If you know what kind of data to expect from a particular file you can use implement
-//! the [ReadbableRecord](trait.ReadableRecord.html) trait to "deserialize" the record into
+//! the [ReadableRecord](trait.ReadableRecord.html) trait to "deserialize" the record into
 //! your custom struct:
 //!
 //! ```
@@ -94,6 +94,7 @@
 //! let mut reader = dbase::Reader::from_path("tests/data/stations.dbf")?;
 //! let stations = reader.read_as::<StationRecord>()?;
 //!
+//! // cspell:disable-next-line
 //! assert_eq!(stations[0].name, "Van Dorn Street");
 //! assert_eq!(stations[0].marker_col, "#0000ff");
 //! assert_eq!(stations[0].marker_sym, "rail-metro");
@@ -103,7 +104,7 @@
 //! ```
 //!
 //! If you use the `serde` optional feature and serde_derive crate you can have the
-//! [ReadbableRecord](trait.ReadableRecord.html) impletemented for you
+//! [ReadableRecord](trait.ReadableRecord.html) implemented for you
 //!
 //! ```
 //! # #[cfg(feature = "serde")]
@@ -126,6 +127,7 @@
 //! let mut reader = dbase::Reader::from_path("tests/data/stations.dbf")?;
 //! let stations = reader.read_as::<StationRecord>()?;
 //!
+//! // cspell:disable-next-line
 //! assert_eq!(stations[0].name, "Van Dorn Street");
 //! assert_eq!(stations[0].marker_col, "#0000ff");
 //! assert_eq!(stations[0].marker_sym, "rail-metro");
@@ -190,6 +192,7 @@
 //!
 //!
 //! let records = User{
+//!     // cspell:disable-next-line
 //!     nick_name: "Yoshi".to_string(),
 //!     age: 32.0,
 //! };
@@ -198,7 +201,7 @@
 //! ```
 //!
 //! If you use the serde optional feature and serde_derive crate you can have the
-//! [WritableRecord](trait.WritableRecord.html) impletemented for you.
+//! [WritableRecord](trait.WritableRecord.html) implemented for you.
 //!
 //! ```
 //! # #[cfg(feature = "serde")]
@@ -226,6 +229,7 @@
 //!
 //!
 //! let records = vec![User{
+//!     // cspell:disable-next-line
 //!     nick_name: "Yoshi".to_string(),
 //!     age: 32.0,
 //! }];
@@ -254,6 +258,8 @@ mod reading;
 mod record;
 mod writing;
 
+use encoding_rs::Encoding;
+
 pub use crate::error::{Error, ErrorKind, FieldIOError};
 pub use crate::reading::{
     read, read_with_label, FieldIterator, NamedValue, ReadableRecord, Reader, Record,
@@ -262,6 +268,27 @@ pub use crate::reading::{
 pub use crate::record::field::{Date, DateTime, FieldType, FieldValue, Time};
 pub use crate::record::{FieldConversionError, FieldInfo, FieldName};
 pub use crate::writing::{FieldWriter, TableWriter, TableWriterBuilder, WritableRecord};
+
+pub(crate) fn invalid_data_error(message: String) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::InvalidData, message)
+}
+
+pub(crate) fn encoded_bytes(value: &str, encoding: &'static Encoding) -> std::io::Result<Vec<u8>> {
+    if encoding == encoding_rs::UTF_8 {
+        Ok(value.as_bytes().to_vec())
+    } else {
+        let (encoded, _, result) = encoding.encode(value);
+        if !result {
+            return Err(invalid_data_error(format!(
+                "cannot encode `{}` by `{}` encoding",
+                value,
+                encoding.name()
+            )));
+        }
+
+        Ok(encoded.to_vec())
+    }
+}
 
 /// macro to define a struct that implements the ReadableRecord and WritableRecord
 ///

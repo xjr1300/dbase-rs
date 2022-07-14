@@ -145,6 +145,7 @@ mod serde_tests {
         let writer_builder = TableWriterBuilder::new()
             .add_character_field(FieldName::try_from("character").unwrap(), 50);
 
+        // cspell:disable-next-line
         let records = vec![Name("Sinmara".to_string())];
         write_read_compare(&records, writer_builder);
     }
