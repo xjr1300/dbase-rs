@@ -341,6 +341,7 @@ pub struct FieldWriter<'a, W: Write> {
     pub(crate) dst: &'a mut W,
     pub(crate) fields_info: std::iter::Peekable<std::slice::Iter<'a, FieldInfo>>,
     pub(crate) buffer: &'a mut Cursor<Vec<u8>>,
+    encoding: &'static Encoding,
 }
 
 impl<'a, W: Write> FieldWriter<'a, W> {
@@ -499,6 +500,7 @@ impl<W: Write + Seek> TableWriter<W> {
             dst: &mut self.dst,
             fields_info: self.fields_info.iter().peekable(),
             buffer: &mut self.buffer,
+            encoding: self.encoding,
         };
 
         let current_record_num = self.header.num_records as usize;
