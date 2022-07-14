@@ -67,7 +67,7 @@
 //! ## Deserialisation
 //!
 //! If you know what kind of data to expect from a particular file you can use implement
-//! the [ReadbableRecord](trait.ReadableRecord.html) trait to "deserialize" the record into
+//! the [ReadableRecord](trait.ReadableRecord.html) trait to "deserialize" the record into
 //! your custom struct:
 //!
 //! ```
@@ -94,6 +94,7 @@
 //! let mut reader = dbase::Reader::from_path("tests/data/stations.dbf")?;
 //! let stations = reader.read_as::<StationRecord>()?;
 //!
+//! // cspell:disable-next-line
 //! assert_eq!(stations[0].name, "Van Dorn Street");
 //! assert_eq!(stations[0].marker_col, "#0000ff");
 //! assert_eq!(stations[0].marker_sym, "rail-metro");
@@ -103,7 +104,7 @@
 //! ```
 //!
 //! If you use the `serde` optional feature and serde_derive crate you can have the
-//! [ReadbableRecord](trait.ReadableRecord.html) impletemented for you
+//! [ReadableRecord](trait.ReadableRecord.html) implemented for you
 //!
 //! ```
 //! # #[cfg(feature = "serde")]
@@ -126,6 +127,7 @@
 //! let mut reader = dbase::Reader::from_path("tests/data/stations.dbf")?;
 //! let stations = reader.read_as::<StationRecord>()?;
 //!
+//! // cspell:disable-next-line
 //! assert_eq!(stations[0].name, "Van Dorn Street");
 //! assert_eq!(stations[0].marker_col, "#0000ff");
 //! assert_eq!(stations[0].marker_sym, "rail-metro");
@@ -190,6 +192,7 @@
 //!
 //!
 //! let records = User{
+//!     // cspell:disable-next-line
 //!     nick_name: "Yoshi".to_string(),
 //!     age: 32.0,
 //! };
@@ -198,7 +201,7 @@
 //! ```
 //!
 //! If you use the serde optional feature and serde_derive crate you can have the
-//! [WritableRecord](trait.WritableRecord.html) impletemented for you.
+//! [WritableRecord](trait.WritableRecord.html) implemented for you.
 //!
 //! ```
 //! # #[cfg(feature = "serde")]
@@ -226,6 +229,7 @@
 //!
 //!
 //! let records = vec![User{
+//!     // cspell:disable-next-line
 //!     nick_name: "Yoshi".to_string(),
 //!     age: 32.0,
 //! }];
