@@ -6,6 +6,7 @@ use std::str::FromStr;
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use encoding_rs::Encoding;
 
+use crate::encoded_bytes;
 use crate::error::ErrorKind;
 use crate::record::FieldInfo;
 use crate::writing::WritableAsDbaseField;
@@ -779,10 +780,18 @@ impl WritableAsDbaseField for String {
         &self,
         field_info: &FieldInfo,
         dst: &mut W,
-        _encoding: &'static Encoding,
+        encoding: &'static Encoding,
     ) -> Result<(), ErrorKind> {
         if field_info.field_type == FieldType::Character {
-            dst.write_all(self.as_bytes())?;
+            let bytes = encoded_bytes(self, encoding);
+            if bytes.is_err() {
+                return Err(ErrorKind::CannotEncodeFieldValue);
+            }
+            let bytes = bytes.unwrap();
+            if (field_info.field_length as usize) < bytes.len() {
+                return Err(ErrorKind::NotEnoughFieldLength);
+            }
+            dst.write_all(&bytes)?;
             Ok(())
         } else {
             Err(ErrorKind::IncompatibleType)
