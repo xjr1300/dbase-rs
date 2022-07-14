@@ -611,7 +611,7 @@ impl<W: Write + Seek> TableWriter<W> {
             .map_err(|error| Error::io_error(error, 0))?;
         for record_info in &self.fields_info {
             record_info
-                .write_to(&mut self.dst)
+                .write_to(&mut self.dst, self.encoding)
                 .map_err(|error| Error::io_error(error, 0))?;
         }
         self.dst

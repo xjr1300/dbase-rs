@@ -2,6 +2,7 @@ use std::convert::TryFrom;
 use std::io::{Read, Write};
 
 use byteorder::{ReadBytesExt, WriteBytesExt};
+use encoding_rs::Encoding;
 
 pub mod field;
 
@@ -10,6 +11,23 @@ use crate::{ErrorKind, FieldValue};
 
 const DELETION_FLAG_NAME: &str = "DeletionFlag";
 const FIELD_NAME_LENGTH: usize = 11;
+
+fn invalid_data_error(message: String) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::InvalidData, message)
+}
+
+fn encoded_bytes(value: &str, encoding: &'static Encoding) -> std::io::Result<Vec<u8>> {
+    let (encoded, _, result) = encoding.encode(value);
+    if !result {
+        return Err(invalid_data_error(format!(
+            "cannot encode `{}` by `{}` encoding",
+            value,
+            encoding.name()
+        )));
+    }
+
+    Ok(encoded.to_vec())
+}
 
 #[derive(Debug)]
 /// Wrapping struct to create a FieldName from a String.
@@ -121,10 +139,28 @@ impl FieldInfo {
         })
     }
 
-    pub(crate) fn write_to<T: Write>(&self, dest: &mut T) -> std::io::Result<()> {
-        let num_bytes = self.name.as_bytes().len();
+    pub(crate) fn write_to<T: Write>(
+        &self,
+        dest: &mut T,
+        encoding: &'static Encoding,
+    ) -> std::io::Result<()> {
+        // get bytes of field name by the encoding.
         let mut name_bytes = [0u8; FIELD_NAME_LENGTH];
-        name_bytes[..num_bytes.min(FIELD_NAME_LENGTH)].copy_from_slice(self.name.as_bytes());
+        if encoding == encoding_rs::UTF_8 {
+            let num_bytes = self.name.as_bytes().len();
+            name_bytes[..num_bytes.min(FIELD_NAME_LENGTH)].copy_from_slice(self.name.as_bytes());
+        } else {
+            let encoded = encoded_bytes(&self.name, encoding)?;
+            if FIELD_NAME_LENGTH <= encoded.len() {
+                return Err(invalid_data_error(format!(
+                    "field name({}) is less than or equal to `{} bytes(actual: {}bytes)",
+                    self.name,
+                    FIELD_NAME_LENGTH - 1,
+                    encoded.len(),
+                )));
+            }
+            name_bytes.copy_from_slice(&encoded);
+        }
         dest.write_all(&name_bytes)?;
 
         dest.write_u8(u8::from(self.field_type))?;
@@ -307,7 +343,9 @@ mod test {
             30,
         );
         let mut cursor = Cursor::new(Vec::<u8>::with_capacity(FieldInfo::SIZE));
-        field_info.write_to(&mut cursor).unwrap();
+        field_info
+            .write_to(&mut cursor, encoding_rs::UTF_8)
+            .unwrap();
 
         cursor.set_position(0);
 
