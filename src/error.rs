@@ -27,7 +27,10 @@ pub enum ErrorKind {
     /// dbase field's type
     IncompatibleType,
     Message(String),
+    /// If a encoding label is incorrect for encoding_rs
     InvalidEncoding,
+    /// The field does not have enough length of field for writing string
+    NotEnoughFieldLength,
 }
 
 /// The error type for this crate
@@ -178,6 +181,9 @@ impl std::error::Error for FieldIOError {
             ErrorKind::IncompatibleType => "The types are not compatible",
             ErrorKind::Message(ref msg) => msg,
             ErrorKind::InvalidEncoding => "The encoding label is not a valid one",
+            ErrorKind::NotEnoughFieldLength => {
+                "The field does not have enough length of field for writing string"
+            }
         }
     }
 }
