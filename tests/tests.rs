@@ -38,6 +38,7 @@ fn test_none_float() {
     let mut expected_fields = Record::default();
     expected_fields.insert(
         "name".to_owned(),
+        // cspell:disable-next-line
         dbase::FieldValue::Character(Some("tralala".to_owned())),
     );
     expected_fields.insert("value_f".to_owned(), dbase::FieldValue::Float(Some(12.345)));
@@ -143,6 +144,7 @@ fn from_scratch_dbase() {
 
     let records = vec![
         Album {
+            // cspell:disable-next-line
             artist: "Fallujah".to_string(),
             name: "The Flesh Prevails".to_string(),
             released: dbase::Date::new(22, 6, 2014),
@@ -232,6 +234,7 @@ dbase_record! {
 fn the_classical_user_record_example() {
     let users = vec![
         User {
+            // cspell:disable-next-line
             first_name: "Ferrys".to_string(),
             last_name: "Rust".to_string(),
         },

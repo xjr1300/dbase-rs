@@ -65,6 +65,7 @@ impl Record {
     ///
     /// ```
     /// let mut record = dbase::Record::default();
+    /// // cspell:disable-next-line
     /// record.insert("FirstName".to_owned(), dbase::FieldValue::Character(Some("Yoshi".to_owned())));
     /// ```
     pub fn insert(&mut self, field_name: String, value: FieldValue) -> Option<FieldValue> {
@@ -253,6 +254,10 @@ impl<T: Read + Seek> Reader<T> {
         &self.fields_info
     }
 
+    pub fn encoding(&self) -> &'static Encoding {
+        self.inner.encoding()
+    }
+
     /// Creates an iterator of records of the type you want
     pub fn iter_records_as<R: ReadableRecord>(&mut self) -> RecordIterator<T, R> {
         let record_size: usize = self
@@ -373,6 +378,7 @@ impl Reader<BufReader<File>> {
         }
         Ok(reader)
     }
+
     /// Creates a new dbase Reader from a path
     ///
     /// # Example
@@ -695,7 +701,7 @@ mod test {
         // check
         assert_eq!(
             *records.get(&0).unwrap(),
-            FieldValue::Character(Some("Thease are only alphabet charcters.".to_string()))
+            FieldValue::Character(Some("These are only alphabet charcters.".to_string()))
         );
         assert_eq!(
             *records.get(&1).unwrap(),
@@ -713,7 +719,7 @@ mod test {
         let records = super::read_with_label("tests/data/shift_jis.dbf", "shift_jis").unwrap();
         assert_eq!(
             records[0].get("text").unwrap().to_owned(),
-            FieldValue::Character(Some("Thease are only alphabet charcters.".to_string()))
+            FieldValue::Character(Some("These are only alphabet charcters.".to_string()))
         );
         assert_eq!(
             records[1].get("text").unwrap().to_owned(),
