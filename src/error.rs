@@ -29,6 +29,8 @@ pub enum ErrorKind {
     Message(String),
     /// If a encoding label is incorrect for encoding_rs
     InvalidEncoding,
+    /// Cannot encode a character field value by specified encoding
+    CannotEncodeFieldValue,
     /// The field does not have enough length of field for writing string
     NotEnoughFieldLength,
 }
@@ -181,6 +183,9 @@ impl std::error::Error for FieldIOError {
             ErrorKind::IncompatibleType => "The types are not compatible",
             ErrorKind::Message(ref msg) => msg,
             ErrorKind::InvalidEncoding => "The encoding label is not a valid one",
+            ErrorKind::CannotEncodeFieldValue => {
+                "Cannot encode a character field value by specified encoding"
+            }
             ErrorKind::NotEnoughFieldLength => {
                 "The field does not have enough length of field for writing string"
             }
