@@ -169,7 +169,7 @@ impl std::error::Error for FieldIOError {
             ErrorKind::ErrorOpeningMemoFile(_) => {
                 "An error occurred when trying to open the memo file"
             }
-            ErrorKind::BadConversion(_) => "The convertion cannot be made",
+            ErrorKind::BadConversion(_) => "The conversion cannot be made",
             ErrorKind::EndOfRecord => "End of record reached, no more fields left",
             ErrorKind::NotEnoughFields => {
                 "The writer did not expected that many fields for the record"
