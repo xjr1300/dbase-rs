@@ -270,16 +270,20 @@ pub(crate) fn invalid_data_error(message: String) -> std::io::Error {
 }
 
 pub(crate) fn encoded_bytes(value: &str, encoding: &'static Encoding) -> std::io::Result<Vec<u8>> {
-    let (encoded, _, result) = encoding.encode(value);
-    if !result {
-        return Err(invalid_data_error(format!(
-            "cannot encode `{}` by `{}` encoding",
-            value,
-            encoding.name()
-        )));
-    }
+    if encoding == encoding_rs::UTF_8 {
+        Ok(value.as_bytes().to_vec())
+    } else {
+        let (encoded, _, result) = encoding.encode(value);
+        if !result {
+            return Err(invalid_data_error(format!(
+                "cannot encode `{}` by `{}` encoding",
+                value,
+                encoding.name()
+            )));
+        }
 
-    Ok(encoded.to_vec())
+        Ok(encoded.to_vec())
+    }
 }
 
 /// macro to define a struct that implements the ReadableRecord and WritableRecord
