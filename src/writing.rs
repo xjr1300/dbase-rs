@@ -48,6 +48,22 @@ impl TableWriterBuilder {
         Self::default()
     }
 
+    pub fn new_with_label(label: &str) -> Result<Self, Error> {
+        let encoding = Encoding::for_label(label.as_bytes());
+        if encoding.is_none() {
+            return Err(Error {
+                record_num: 0,
+                field: None,
+                kind: ErrorKind::InvalidEncoding,
+            });
+        }
+
+        Ok(Self {
+            encoding: encoding.unwrap(),
+            ..Self::default()
+        })
+    }
+
     /// Gets the field definition from the reader to construct the TableWriter
     ///
     /// # Example
