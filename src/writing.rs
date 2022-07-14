@@ -446,6 +446,7 @@ pub struct TableWriter<W: Write + Seek> {
     header: Header,
     /// Buffer used by the FieldWriter
     buffer: Cursor<Vec<u8>>,
+    encoding: &'static Encoding,
     closed: bool,
 }
 
@@ -456,6 +457,7 @@ impl<W: Write + Seek> TableWriter<W> {
             fields_info,
             header: origin_header,
             buffer: Cursor::new(vec![0u8; 255]),
+            encoding: encoding_rs::UTF_8,
             closed: false,
         }
     }
