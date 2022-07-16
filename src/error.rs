@@ -33,6 +33,8 @@ pub enum ErrorKind {
     CannotEncodeFieldValue,
     /// The field does not have enough length of field for writing string
     NotEnoughFieldLength,
+    /// Cannot decode a bytes to string
+    CannotDecode,
 }
 
 /// The error type for this crate
@@ -189,6 +191,7 @@ impl std::error::Error for FieldIOError {
             ErrorKind::NotEnoughFieldLength => {
                 "The field does not have enough length of field for writing string"
             }
+            ErrorKind::CannotDecode => "The byte sequence was not decode to string by encoding",
         }
     }
 }

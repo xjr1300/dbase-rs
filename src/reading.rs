@@ -157,6 +157,17 @@ pub struct Reader<T: Read + Seek> {
 
 impl<T: Read + Seek> Reader<T> {
     fn _new(mut source: T, label: Option<&str>) -> Result<Self, Error> {
+        let label = label.unwrap_or("utf-8");
+        let encoding = Encoding::for_label(label.as_bytes());
+        if encoding.is_none() {
+            return Err(Error {
+                record_num: 0,
+                field: None,
+                kind: ErrorKind::InvalidEncoding,
+            });
+        }
+        let encoding = encoding.unwrap();
+
         let header = Header::read_from(&mut source).map_err(|error| Error::io_error(error, 0))?;
 
         let offset = if header.file_type.is_visual_fox_pro() {
@@ -170,7 +181,7 @@ impl<T: Read + Seek> Reader<T> {
         let mut fields_info = Vec::<FieldInfo>::with_capacity(num_fields as usize + 1);
         fields_info.push(FieldInfo::new_deletion_flag());
         for _ in 0..num_fields {
-            let info = FieldInfo::read_from(&mut source).map_err(|error| Error {
+            let info = FieldInfo::read_from(&mut source, encoding).map_err(|error| Error {
                 record_num: 0,
                 field: None,
                 kind: error,
@@ -188,25 +199,12 @@ impl<T: Read + Seek> Reader<T> {
             .seek(SeekFrom::Start(u64::from(header.offset_to_first_record)))
             .map_err(|error| Error::io_error(error, 0))?;
 
-        // get encoding.
-        let label = label.unwrap_or("utf-8");
-        let encoding = Encoding::for_label(label.as_bytes());
-        if encoding.is_none() {
-            return Err(Error {
-                record_num: 0,
-                field: None,
-                kind: ErrorKind::InvalidEncoding,
-            });
-        }
-
         Ok(Self {
             source,
             memo_reader: None,
             header,
             fields_info,
-            inner: Inner {
-                encoding: encoding.unwrap(),
-            },
+            inner: Inner { encoding },
         })
     }
 
@@ -696,42 +694,48 @@ mod test {
         use std::collections::HashMap;
         let mut records = HashMap::new();
         for (index, record) in reader.iter_records().enumerate() {
-            records.insert(index, record.unwrap().get("text").unwrap().to_owned());
+            match record.unwrap().get("text").unwrap() {
+                FieldValue::Character(value) => match value {
+                    Some(value) => records.insert(index, Some(value.to_owned())),
+                    None => records.insert(index, None),
+                },
+                _ => None,
+            };
         }
         // check
         assert_eq!(
-            *records.get(&0).unwrap(),
-            FieldValue::Character(Some("These are only alphabet charcters.".to_string()))
+            records.get(&0).unwrap().as_ref(),
+            Some(&"These are only alphabet charcters.".to_string()),
         );
         assert_eq!(
-            *records.get(&1).unwrap(),
-            FieldValue::Character(Some("Rustは、難しいけど楽しい。".to_string()))
+            records.get(&1).unwrap().as_ref(),
+            Some(&"Rustは、難しいけど楽しい。".to_string())
         );
         assert_eq!(
-            *records.get(&2).unwrap(),
-            FieldValue::Character(Some("吾輩は猫である。名前はまだ無い。".to_string()))
+            records.get(&2).unwrap().as_ref(),
+            Some(&"吾輩は猫である。名前はまだ無い。".to_string())
         );
-        assert_eq!(*records.get(&3).unwrap(), FieldValue::Character(None));
+        assert_eq!(records.get(&3).unwrap().as_ref(), None);
     }
 
     #[test]
     fn read_with_label() {
         let records = super::read_with_label("tests/data/shift_jis.dbf", "shift_jis").unwrap();
         assert_eq!(
-            records[0].get("text").unwrap().to_owned(),
-            FieldValue::Character(Some("These are only alphabet charcters.".to_string()))
+            records[0].get("text").unwrap(),
+            &FieldValue::Character(Some("These are only alphabet charcters.".to_string()))
         );
         assert_eq!(
-            records[1].get("text").unwrap().to_owned(),
-            FieldValue::Character(Some("Rustは、難しいけど楽しい。".to_string()))
+            records[1].get("text").unwrap(),
+            &FieldValue::Character(Some("Rustは、難しいけど楽しい。".to_string()))
         );
         assert_eq!(
-            records[2].get("text").unwrap().to_owned(),
-            FieldValue::Character(Some("吾輩は猫である。名前はまだ無い。".to_string()))
+            records[2].get("text").unwrap(),
+            &FieldValue::Character(Some("吾輩は猫である。名前はまだ無い。".to_string()))
         );
         assert_eq!(
-            records[3].get("text").unwrap().to_owned(),
-            FieldValue::Character(None),
+            records[3].get("text").unwrap(),
+            &FieldValue::Character(None),
         );
     }
 }
