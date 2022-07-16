@@ -694,42 +694,48 @@ mod test {
         use std::collections::HashMap;
         let mut records = HashMap::new();
         for (index, record) in reader.iter_records().enumerate() {
-            records.insert(index, record.unwrap().get("text").unwrap().to_owned());
+            match record.unwrap().get("text").unwrap() {
+                FieldValue::Character(value) => match value {
+                    Some(value) => records.insert(index, Some(value.to_owned())),
+                    None => records.insert(index, None),
+                },
+                _ => None,
+            };
         }
         // check
         assert_eq!(
-            *records.get(&0).unwrap(),
-            FieldValue::Character(Some("These are only alphabet charcters.".to_string()))
+            records.get(&0).unwrap().as_ref(),
+            Some(&"These are only alphabet charcters.".to_string()),
         );
         assert_eq!(
-            *records.get(&1).unwrap(),
-            FieldValue::Character(Some("Rustは、難しいけど楽しい。".to_string()))
+            records.get(&1).unwrap().as_ref(),
+            Some(&"Rustは、難しいけど楽しい。".to_string())
         );
         assert_eq!(
-            *records.get(&2).unwrap(),
-            FieldValue::Character(Some("吾輩は猫である。名前はまだ無い。".to_string()))
+            records.get(&2).unwrap().as_ref(),
+            Some(&"吾輩は猫である。名前はまだ無い。".to_string())
         );
-        assert_eq!(*records.get(&3).unwrap(), FieldValue::Character(None));
+        assert_eq!(records.get(&3).unwrap().as_ref(), None);
     }
 
     #[test]
     fn read_with_label() {
         let records = super::read_with_label("tests/data/shift_jis.dbf", "shift_jis").unwrap();
         assert_eq!(
-            records[0].get("text").unwrap().to_owned(),
-            FieldValue::Character(Some("These are only alphabet charcters.".to_string()))
+            records[0].get("text").unwrap(),
+            &FieldValue::Character(Some("These are only alphabet charcters.".to_string()))
         );
         assert_eq!(
-            records[1].get("text").unwrap().to_owned(),
-            FieldValue::Character(Some("Rustは、難しいけど楽しい。".to_string()))
+            records[1].get("text").unwrap(),
+            &FieldValue::Character(Some("Rustは、難しいけど楽しい。".to_string()))
         );
         assert_eq!(
-            records[2].get("text").unwrap().to_owned(),
-            FieldValue::Character(Some("吾輩は猫である。名前はまだ無い。".to_string()))
+            records[2].get("text").unwrap(),
+            &FieldValue::Character(Some("吾輩は猫である。名前はまだ無い。".to_string()))
         );
         assert_eq!(
-            records[3].get("text").unwrap().to_owned(),
-            FieldValue::Character(None),
+            records[3].get("text").unwrap(),
+            &FieldValue::Character(None),
         );
     }
 }
