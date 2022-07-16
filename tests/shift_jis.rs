@@ -62,7 +62,7 @@ fn shift_jis_write_file_with_encoded_field_name() {
     assert_eq!(read_record.text, value);
 }
 
-fn character_value(value: Option<&FieldValue>) -> Option<String> {
+fn character_field_value(value: Option<&FieldValue>) -> Option<String> {
     match value {
         Some(value) => match value {
             FieldValue::Character(value) => match value {
@@ -91,8 +91,8 @@ fn shift_jis_read_field_names_and_values() {
     assert_eq!(reader.fields().get(2).unwrap().name(), "著者");
     for (index, record) in reader.iter_records().enumerate() {
         let record = record.unwrap();
-        let book = character_value(record.get("書籍名"));
-        let author = character_value(record.get("著者"));
+        let book = character_field_value(record.get("書籍名"));
+        let author = character_field_value(record.get("著者"));
         let book_and_author = data.get(&index).unwrap();
         let book = book.as_deref();
         assert_eq!(book.as_deref(), book_and_author.0);
