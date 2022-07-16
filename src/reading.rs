@@ -157,6 +157,17 @@ pub struct Reader<T: Read + Seek> {
 
 impl<T: Read + Seek> Reader<T> {
     fn _new(mut source: T, label: Option<&str>) -> Result<Self, Error> {
+        let label = label.unwrap_or("utf-8");
+        let encoding = Encoding::for_label(label.as_bytes());
+        if encoding.is_none() {
+            return Err(Error {
+                record_num: 0,
+                field: None,
+                kind: ErrorKind::InvalidEncoding,
+            });
+        }
+        let encoding = encoding.unwrap();
+
         let header = Header::read_from(&mut source).map_err(|error| Error::io_error(error, 0))?;
 
         let offset = if header.file_type.is_visual_fox_pro() {
@@ -170,7 +181,7 @@ impl<T: Read + Seek> Reader<T> {
         let mut fields_info = Vec::<FieldInfo>::with_capacity(num_fields as usize + 1);
         fields_info.push(FieldInfo::new_deletion_flag());
         for _ in 0..num_fields {
-            let info = FieldInfo::read_from(&mut source).map_err(|error| Error {
+            let info = FieldInfo::read_from(&mut source, encoding).map_err(|error| Error {
                 record_num: 0,
                 field: None,
                 kind: error,
@@ -188,25 +199,12 @@ impl<T: Read + Seek> Reader<T> {
             .seek(SeekFrom::Start(u64::from(header.offset_to_first_record)))
             .map_err(|error| Error::io_error(error, 0))?;
 
-        // get encoding.
-        let label = label.unwrap_or("utf-8");
-        let encoding = Encoding::for_label(label.as_bytes());
-        if encoding.is_none() {
-            return Err(Error {
-                record_num: 0,
-                field: None,
-                kind: ErrorKind::InvalidEncoding,
-            });
-        }
-
         Ok(Self {
             source,
             memo_reader: None,
             header,
             fields_info,
-            inner: Inner {
-                encoding: encoding.unwrap(),
-            },
+            inner: Inner { encoding },
         })
     }
 
