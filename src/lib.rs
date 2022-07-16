@@ -277,8 +277,8 @@ pub(crate) fn encoded_bytes(value: &str, encoding: &'static Encoding) -> std::io
     if encoding == encoding_rs::UTF_8 {
         Ok(value.as_bytes().to_vec())
     } else {
-        let (encoded, _, result) = encoding.encode(value);
-        if !result {
+        let (encoded, _, has_cannot_map_chars) = encoding.encode(value);
+        if has_cannot_map_chars {
             return Err(invalid_data_error(format!(
                 "cannot encode `{}` by `{}` encoding",
                 value,

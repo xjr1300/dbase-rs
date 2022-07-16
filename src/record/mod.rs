@@ -83,7 +83,10 @@ impl FieldInfo {
         }
     }
 
-    pub(crate) fn read_from<T: Read>(source: &mut T) -> Result<Self, ErrorKind> {
+    pub(crate) fn read_from<T: Read>(
+        source: &mut T,
+        encoding: &'static Encoding,
+    ) -> Result<Self, ErrorKind> {
         let mut name = [0u8; FIELD_NAME_LENGTH];
         source.read_exact(&mut name)?;
         let field_type = source.read_u8()?;
@@ -104,9 +107,17 @@ impl FieldInfo {
         let mut _reserved = [0u8; 7];
         source.read_exact(&mut _reserved)?;
 
-        let s = String::from_utf8_lossy(&name)
-            .trim_matches(|c| c == '\u{0}')
-            .to_owned();
+        let s = if encoding == encoding_rs::UTF_8 {
+            String::from_utf8_lossy(&name)
+                .trim_matches(|c| c == '\u{0}')
+                .to_owned()
+        } else {
+            let (decoded, _, has_malformed) = encoding.decode(&name);
+            if has_malformed {
+                return Err(ErrorKind::CannotDecode);
+            }
+            decoded.trim_matches(|c| c == '\u{0}').to_string()
+        };
 
         let field_type = FieldType::try_from(field_type as char)?;
 
@@ -133,7 +144,7 @@ impl FieldInfo {
             let num_bytes = self.name.as_bytes().len();
             name_bytes[..num_bytes.min(FIELD_NAME_LENGTH)].copy_from_slice(self.name.as_bytes());
         } else {
-            let encoded = encoded_bytes(&self.name, encoding)?;
+            let encoded = encoded_bytes(self.name.as_str(), encoding)?;
             if FIELD_NAME_LENGTH <= encoded.len() {
                 return Err(invalid_data_error(format!(
                     "field name({}) is less than or equal to `{} bytes(actual: {}bytes)",
@@ -142,7 +153,7 @@ impl FieldInfo {
                     encoded.len(),
                 )));
             }
-            name_bytes.copy_from_slice(&encoded);
+            name_bytes[..encoded.len()].copy_from_slice(&encoded);
         }
         dest.write_all(&name_bytes)?;
 
@@ -332,7 +343,7 @@ mod test {
 
         cursor.set_position(0);
 
-        let read_field_info = FieldInfo::read_from(&mut cursor).unwrap();
+        let read_field_info = FieldInfo::read_from(&mut cursor, encoding_rs::UTF_8).unwrap();
 
         assert_eq!(read_field_info, field_info);
     }
