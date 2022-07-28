@@ -10,9 +10,4 @@ If dbase-rs fails to read or write or does something incorrectly, don't hesitate
 
 # to write a dbase file with encoding
 
-# test for encoding
-
-* フィールドの名前がShift-JISで出力されるか確認するテスト
-* 文字列フィールドの値がShift-JISで出力されるか確認するテスト
-* フィールドの名前をShift-JISでエンコードしたとき、そのバイト数が10バイトより多い場合に、エラーとなるか確認するテスト
-* フィールドの値をShift-JISでエンコードしたとき、そのバイト数がフィールドの長さより多い場合に、エラーとなるか確認するテスト
+This fork uses a [encoding_rs](https://crates.io/crates/encoding_rs) create
